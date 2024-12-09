@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+env/
+.env/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# Executable files
+*.exe
+
+# Personal files
+.stickynotes
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
