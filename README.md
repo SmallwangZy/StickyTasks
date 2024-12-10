@@ -9,8 +9,8 @@
 
 ## 快捷键 (Shortcuts)
 
-- `Shift + Win + Q`: 显示/隐藏便签 (Show/Hide Notes)
-- `Shift + Win + W`: 切换窗口置顶 (Toggle Always on Top)
+- `Shift + Alt + Q`: 显示/隐藏便签 (Show/Hide Notes)
+- `Shift + Alt + W`: 切换窗口置顶 (Toggle Always on Top)
 - `Ctrl + 鼠标滚轮`: 调节字体大小 (Adjust Font Size)
 
 ## 安装依赖 (Install Dependencies)

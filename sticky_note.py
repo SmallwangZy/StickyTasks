@@ -3,8 +3,8 @@ import os
 import keyboard
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QTextEdit, 
                            QVBoxLayout, QWidget, QPushButton, QHBoxLayout,
-                           QSystemTrayIcon, QMenu, QAction)
-from PyQt5.QtCore import Qt, QSize
+                           QSystemTrayIcon, QMenu, QAction, QSizeGrip)
+from PyQt5.QtCore import Qt, QSize, QPoint
 from PyQt5.QtGui import QIcon, QFont
 
 class StickyNote(QMainWindow):
@@ -13,6 +13,9 @@ class StickyNote(QMainWindow):
         self.initUI()
         self.always_on_top = False
         self.current_font_size = 12  # 初始字体大小
+        self.resize_margin = 5  # 调整大小的边缘宽度
+        self.resizing = False
+        self.resize_edge = None
         
         # 获取保存文件路径
         self.notes_file = os.path.expanduser('~/.stickynotes')
@@ -24,7 +27,8 @@ class StickyNote(QMainWindow):
         # 设置窗口基本属性
         self.setWindowTitle('便签')
         self.setWindowFlags(Qt.FramelessWindowHint)
-        self.setGeometry(100, 100, 400, 350)  # 稍微调大窗口尺寸
+        self.setGeometry(100, 100, 400, 350)  # 初始窗口尺寸
+        self.setMinimumSize(200, 150)  # 设置最小窗口尺寸
         
         # 设置应用图标
         icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mypad.ico')
@@ -98,6 +102,10 @@ class StickyNote(QMainWindow):
         # 将部件添加到布局中
         layout.addLayout(top_bar)
         layout.addWidget(self.text_edit)
+        
+        # 添加大小调整手柄
+        size_grip = QSizeGrip(self)
+        size_grip.setStyleSheet("background: transparent;")
         
         # 设置整体样式
         self.setStyleSheet("""
@@ -196,12 +204,92 @@ class StickyNote(QMainWindow):
     
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
-            self.dragPos = event.globalPos()
+            # 获取窗口边缘
+            rect = self.rect()
+            pos = event.pos()
+            
+            # 检查是否在调整大小的区域内
+            if pos.x() <= self.resize_margin:  # 左边缘
+                if pos.y() <= self.resize_margin:  # 左上角
+                    self.resize_edge = 'top-left'
+                elif pos.y() >= rect.height() - self.resize_margin:  # 左下角
+                    self.resize_edge = 'bottom-left'
+                else:  # 左边
+                    self.resize_edge = 'left'
+                self.resizing = True
+            elif pos.x() >= rect.width() - self.resize_margin:  # 右边缘
+                if pos.y() <= self.resize_margin:  # 右上角
+                    self.resize_edge = 'top-right'
+                elif pos.y() >= rect.height() - self.resize_margin:  # 右下角
+                    self.resize_edge = 'bottom-right'
+                else:  # 右边
+                    self.resize_edge = 'right'
+                self.resizing = True
+            elif pos.y() <= self.resize_margin:  # 上边缘
+                self.resize_edge = 'top'
+                self.resizing = True
+            elif pos.y() >= rect.height() - self.resize_margin:  # 下边缘
+                self.resize_edge = 'bottom'
+                self.resizing = True
+            else:
+                self.resizing = False
+                self.dragPos = event.globalPos()
 
     def mouseMoveEvent(self, event):
-        if event.buttons() == Qt.LeftButton:
+        if self.resizing and event.buttons() == Qt.LeftButton:
+            # 获取当前窗口的几何信息
+            geo = self.geometry()
+            pos = event.globalPos()
+            
+            # 根据拖动边缘调整窗口大小
+            if self.resize_edge in ['left', 'top-left', 'bottom-left']:
+                diff = geo.left() - pos.x()
+                if geo.width() + diff >= self.minimumWidth():
+                    geo.setLeft(pos.x())
+            
+            if self.resize_edge in ['right', 'top-right', 'bottom-right']:
+                geo.setRight(pos.x())
+            
+            if self.resize_edge in ['top', 'top-left', 'top-right']:
+                diff = geo.top() - pos.y()
+                if geo.height() + diff >= self.minimumHeight():
+                    geo.setTop(pos.y())
+            
+            if self.resize_edge in ['bottom', 'bottom-left', 'bottom-right']:
+                geo.setBottom(pos.y())
+            
+            # 应用新的几何信息
+            self.setGeometry(geo)
+        elif event.buttons() == Qt.LeftButton and not self.resizing:
+            # 移动窗口
             self.move(self.pos() + event.globalPos() - self.dragPos)
             self.dragPos = event.globalPos()
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.resizing = False
+            self.resize_edge = None
+
+    def enterEvent(self, event):
+        self.setCursor(Qt.ArrowCursor)
+
+    def leaveEvent(self, event):
+        self.setCursor(Qt.ArrowCursor)
+
+    def update_cursor(self, pos):
+        # 根据鼠标位置更新光标形状
+        rect = self.rect()
+        if pos.x() <= self.resize_margin or pos.x() >= rect.width() - self.resize_margin:
+            if pos.y() <= self.resize_margin:
+                self.setCursor(Qt.SizeFDiagCursor)
+            elif pos.y() >= rect.height() - self.resize_margin:
+                self.setCursor(Qt.SizeBDiagCursor)
+            else:
+                self.setCursor(Qt.SizeHorCursor)
+        elif pos.y() <= self.resize_margin or pos.y() >= rect.height() - self.resize_margin:
+            self.setCursor(Qt.SizeVerCursor)
+        else:
+            self.setCursor(Qt.ArrowCursor)
 
 def main():
     app = QApplication(sys.argv)
@@ -256,8 +344,8 @@ def main():
         note.toggle_always_on_top()
     
     # 创建应用实例后再注册快捷键
-    keyboard.add_hotkey('shift+windows+q', toggle_visibility, suppress=True)
-    keyboard.add_hotkey('shift+windows+w', toggle_pin_state, suppress=True)
+    keyboard.add_hotkey('shift+alt+q', toggle_visibility, suppress=True)
+    keyboard.add_hotkey('shift+alt+w', toggle_pin_state, suppress=True)
     
     note.show()  # 先显示一次窗口
     sys.exit(app.exec_())
