@@ -16,6 +16,9 @@ class StickyNote(QMainWindow):
         self.resize_margin = 5  # 调整大小的边缘宽度
         self.resizing = False
         self.resize_edge = None
+        self.resize_start_pos = None
+        self.resize_start_geometry = None
+        self.dragPos = None  # 初始化拖动位置
         
         # 获取保存文件路径
         self.notes_file = os.path.expanduser('~/.stickynotes')
@@ -208,59 +211,68 @@ class StickyNote(QMainWindow):
             rect = self.rect()
             pos = event.pos()
             
-            # 检查是否在调整大小的区域内
-            if pos.x() <= self.resize_margin:  # 左边缘
-                if pos.y() <= self.resize_margin:  # 左上角
-                    self.resize_edge = 'top-left'
-                elif pos.y() >= rect.height() - self.resize_margin:  # 左下角
-                    self.resize_edge = 'bottom-left'
-                else:  # 左边
-                    self.resize_edge = 'left'
-                self.resizing = True
-            elif pos.x() >= rect.width() - self.resize_margin:  # 右边缘
-                if pos.y() <= self.resize_margin:  # 右上角
-                    self.resize_edge = 'top-right'
-                elif pos.y() >= rect.height() - self.resize_margin:  # 右下角
+            # 主要检查右边和下边的调整区域
+            if pos.x() >= rect.width() - self.resize_margin:  # 右边缘
+                if pos.y() >= rect.height() - self.resize_margin:  # 右下角
                     self.resize_edge = 'bottom-right'
+                    self.resizing = True
                 else:  # 右边
                     self.resize_edge = 'right'
-                self.resizing = True
-            elif pos.y() <= self.resize_margin:  # 上边缘
-                self.resize_edge = 'top'
-                self.resizing = True
+                    self.resizing = True
             elif pos.y() >= rect.height() - self.resize_margin:  # 下边缘
                 self.resize_edge = 'bottom'
                 self.resizing = True
             else:
                 self.resizing = False
-                self.dragPos = event.globalPos()
+                self.dragPos = event.globalPos()  # 初始化拖动位置
+            
+            # 记录初始大小和位置
+            if self.resizing:
+                self.resize_start_pos = event.globalPos()
+                self.resize_start_geometry = self.geometry()
+            else:
+                self.dragPos = event.globalPos()  # 确保拖动位置被初始化
 
     def mouseMoveEvent(self, event):
+        # 获取鼠标位置和窗口大小
+        pos = event.pos()
+        rect = self.rect()
+        
+        # 更新鼠标光标
+        if pos.x() >= rect.width() - self.resize_margin:  # 右边缘
+            if pos.y() >= rect.height() - self.resize_margin:  # 右下角
+                self.setCursor(Qt.SizeFDiagCursor)  # 对角调整光标
+            else:
+                self.setCursor(Qt.SizeHorCursor)  # 水平调整光标
+        elif pos.y() >= rect.height() - self.resize_margin:  # 下边缘
+            self.setCursor(Qt.SizeVerCursor)  # 垂直调整光标
+        else:
+            self.setCursor(Qt.ArrowCursor)  # 默认光标
+        
         if self.resizing and event.buttons() == Qt.LeftButton:
-            # 获取当前窗口的几何信息
-            geo = self.geometry()
-            pos = event.globalPos()
+            # 计算鼠标移动的距离
+            diff = event.globalPos() - self.resize_start_pos
+            new_geo = self.resize_start_geometry
             
             # 根据拖动边缘调整窗口大小
-            if self.resize_edge in ['left', 'top-left', 'bottom-left']:
-                diff = geo.left() - pos.x()
-                if geo.width() + diff >= self.minimumWidth():
-                    geo.setLeft(pos.x())
-            
-            if self.resize_edge in ['right', 'top-right', 'bottom-right']:
-                geo.setRight(pos.x())
-            
-            if self.resize_edge in ['top', 'top-left', 'top-right']:
-                diff = geo.top() - pos.y()
-                if geo.height() + diff >= self.minimumHeight():
-                    geo.setTop(pos.y())
-            
-            if self.resize_edge in ['bottom', 'bottom-left', 'bottom-right']:
-                geo.setBottom(pos.y())
+            if self.resize_edge == 'right':
+                new_width = new_geo.width() + diff.x()
+                if new_width >= self.minimumWidth():
+                    new_geo.setWidth(new_width)
+            elif self.resize_edge == 'bottom':
+                new_height = new_geo.height() + diff.y()
+                if new_height >= self.minimumHeight():
+                    new_geo.setHeight(new_height)
+            elif self.resize_edge == 'bottom-right':
+                new_width = new_geo.width() + diff.x()
+                new_height = new_geo.height() + diff.y()
+                if new_width >= self.minimumWidth() and new_height >= self.minimumHeight():
+                    new_geo.setWidth(new_width)
+                    new_geo.setHeight(new_height)
             
             # 应用新的几何信息
-            self.setGeometry(geo)
-        elif event.buttons() == Qt.LeftButton and not self.resizing:
+            self.setGeometry(new_geo)
+        elif event.buttons() == Qt.LeftButton and not self.resizing and self.dragPos is not None:
             # 移动窗口
             self.move(self.pos() + event.globalPos() - self.dragPos)
             self.dragPos = event.globalPos()
@@ -269,27 +281,15 @@ class StickyNote(QMainWindow):
         if event.button() == Qt.LeftButton:
             self.resizing = False
             self.resize_edge = None
+            self.dragPos = None  # 重置拖动位置
+            # 重置光标
+            self.setCursor(Qt.ArrowCursor)
 
     def enterEvent(self, event):
         self.setCursor(Qt.ArrowCursor)
 
     def leaveEvent(self, event):
         self.setCursor(Qt.ArrowCursor)
-
-    def update_cursor(self, pos):
-        # 根据鼠标位置更新光标形状
-        rect = self.rect()
-        if pos.x() <= self.resize_margin or pos.x() >= rect.width() - self.resize_margin:
-            if pos.y() <= self.resize_margin:
-                self.setCursor(Qt.SizeFDiagCursor)
-            elif pos.y() >= rect.height() - self.resize_margin:
-                self.setCursor(Qt.SizeBDiagCursor)
-            else:
-                self.setCursor(Qt.SizeHorCursor)
-        elif pos.y() <= self.resize_margin or pos.y() >= rect.height() - self.resize_margin:
-            self.setCursor(Qt.SizeVerCursor)
-        else:
-            self.setCursor(Qt.ArrowCursor)
 
 def main():
     app = QApplication(sys.argv)

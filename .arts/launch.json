@@ -1,0 +1,17 @@
+{
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "currentFileConfiguration": true,
+            "cwd": "${fileDirname}",
+            "console": "internalConsole",
+            "addSourceRootsToPythonpath": true,
+            "env": {
+                "PYTHONPATH": "${workspaceFolder};${env:PYTHONPATH}"
+            }
+        }
+    ]
+}
