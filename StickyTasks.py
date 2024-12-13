@@ -3,7 +3,8 @@ import os
 import keyboard
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QTextEdit, 
                            QVBoxLayout, QWidget, QPushButton, QHBoxLayout,
-                           QSystemTrayIcon, QMenu, QAction, QSizeGrip, QScrollArea)
+                           QSystemTrayIcon, QMenu, QAction, QSizeGrip, QScrollArea,
+                           QLabel)
 from PyQt5.QtCore import Qt, QSize, QPoint
 from PyQt5.QtGui import QIcon, QFont, QColor
 
@@ -187,6 +188,21 @@ class StickyNote(QMainWindow):
         top_bar = QHBoxLayout()
         top_bar.setSpacing(10)
         
+        # 添加日期标签
+        from datetime import datetime
+        date_label = QLabel(datetime.now().strftime("%Y-%m-%d"))
+        date_label.setStyleSheet("""
+            QLabel {
+                color: #495057;
+                font-family: 'Segoe UI', 'Microsoft YaHei';
+                font-size: 14px;
+                font-weight: 500;
+                padding: 5px 10px;
+                background-color: rgba(255, 255, 255, 0.7);
+                border-radius: 8px;
+            }
+        """)
+        
         # 置顶按钮
         self.pin_btn = QPushButton('📌')
         self.pin_btn.setFixedSize(25, 25)
@@ -241,6 +257,7 @@ class StickyNote(QMainWindow):
         """)
         
         top_bar.addStretch()  # 添加弹性空间，将按钮推到右边
+        top_bar.addWidget(date_label)  # 添加日期标签
         top_bar.addWidget(self.pin_btn)  # 钉住按钮
         top_bar.addWidget(add_btn)      # 添加按钮
         top_bar.addWidget(close_btn)    # 关闭按钮
