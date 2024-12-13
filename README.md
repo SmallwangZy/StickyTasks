@@ -1,6 +1,7 @@
 # 桌面便签 (Desktop Sticky Notes)
 
 一个简洁美观的桌面便签应用，支持多条便签管理、状态切换和字体大小调整。
+![notes](sticky.png)
 
 ## 功能特点 (Features)
 
