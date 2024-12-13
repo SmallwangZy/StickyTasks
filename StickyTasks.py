@@ -151,7 +151,7 @@ class StickyNote(QMainWindow):
         self.setMinimumSize(300, 200)
         
         # 设置应用图标
-        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mypad.ico')
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'icon.ico')
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
         
@@ -477,7 +477,7 @@ def main():
     app.setQuitOnLastWindowClosed(False)  
     
     # 设置应用程序图标
-    icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'mypad.ico')
+    icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'icon.ico')
     
     # 创建系统托盘图标
     tray_icon = QSystemTrayIcon()
