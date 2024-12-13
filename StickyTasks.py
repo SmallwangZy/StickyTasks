@@ -15,12 +15,14 @@ class CellWidget(QWidget):
         
     def initUI(self):
         layout = QHBoxLayout()
-        layout.setContentsMargins(5, 5, 5, 5)
+        layout.setContentsMargins(0, 1, 1, 1)  # 单元格左边距设为0
+        layout.setSpacing(8)  # 保持水平间距不变
         
         # 按钮容器
         button_container = QWidget()
         button_layout = QVBoxLayout()
-        button_layout.setSpacing(5)
+        button_layout.setContentsMargins(2, 0, 2, 0)  # 给按钮容器添加适当的左右边距
+        button_layout.setSpacing(1)
         
         # 创建红色删除按钮
         self.delete_btn = QPushButton('×')
@@ -70,7 +72,7 @@ class CellWidget(QWidget):
             QTextEdit {
                 background-color: white;
                 border: 1px solid #ddd;
-                border-radius: 5px;
+                border-radius: 8px;
                 padding: 5px;
             }
         """)
@@ -109,7 +111,7 @@ class CellWidget(QWidget):
                 QTextEdit {{
                     background-color: #f1f3f5;
                     border: 1px solid #ddd;
-                    border-radius: 5px;
+                    border-radius: 8px;
                     padding: 5px;
                 }}
             """)
@@ -119,7 +121,7 @@ class CellWidget(QWidget):
                 QTextEdit {{
                     background-color: white;
                     border: 1px solid #ddd;
-                    border-radius: 5px;
+                    border-radius: 8px;
                     padding: 5px;
                 }}
             """)
@@ -139,14 +141,19 @@ class StickyNote(QMainWindow):
         self.dragPos = None
         
         # 获取保存文件路径
-        self.notes_file = os.path.expanduser('~/.stickynotes')
+        self.notes_file = os.path.expanduser('~/.stickynotes.xml')
         
         # 尝试读取之前保存的内容
         self.load_notes()
         
+        # 如果没有任何单元格，才创建第一个单元格
+        if self.cells_layout.count() == 1:  # 只有stretch项时
+            self.add_cell()
+        
     def initUI(self):
         self.setWindowTitle('便签')
-        self.setWindowFlags(Qt.FramelessWindowHint)
+        self.setWindowFlags(Qt.FramelessWindowHint)  # 无边框窗口
+        self.setAttribute(Qt.WA_TranslucentBackground)  # 设置透明背景，这样圆角才能显示
         self.setGeometry(100, 100, 400, 500)
         self.setMinimumSize(300, 200)
         
@@ -158,15 +165,62 @@ class StickyNote(QMainWindow):
         # 创建中心部件
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        central_widget.setStyleSheet("background-color: #fff7e6;")
+        central_widget.setStyleSheet("""
+            QWidget {
+                background: qlineargradient(
+                    x1: 0, y1: 0,
+                    x2: 1, y2: 1,
+                    stop: 0 #ffd8a8,
+                    stop: 0.3 #ffe8cc,
+                    stop: 0.6 #fff3e0,
+                    stop: 1 #fff9db
+                );
+                border-radius: 10px;
+            }
+        """)
         
         # 创建主布局
         self.main_layout = QVBoxLayout(central_widget)
-        self.main_layout.setContentsMargins(10, 10, 10, 10)
+        self.main_layout.setContentsMargins(1, 5, 5, 5)  # 左边距减小到1像素
         
         # 创建顶部按钮栏
         top_bar = QHBoxLayout()
         top_bar.setSpacing(10)
+        
+        # 置顶按钮
+        self.pin_btn = QPushButton('📌')
+        self.pin_btn.setFixedSize(25, 25)
+        self.pin_btn.clicked.connect(self.toggle_always_on_top)
+        self.pin_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4dabf7;
+                border: none;
+                color: white;
+                border-radius: 12px;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #339af0;
+            }
+        """)
+
+        # 添加新单元格按钮
+        add_btn = QPushButton('+')
+        add_btn.setFixedSize(25, 25)
+        add_btn.clicked.connect(self.add_cell)
+        add_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #ffd43b;
+                border: none;
+                color: white;
+                border-radius: 12px;
+                font-size: 16px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #fcc419;
+            }
+        """)
         
         # 关闭按钮
         close_btn = QPushButton('×')
@@ -186,26 +240,10 @@ class StickyNote(QMainWindow):
             }
         """)
         
-        # 置顶按钮
-        self.pin_btn = QPushButton('📌')
-        self.pin_btn.setFixedSize(25, 25)
-        self.pin_btn.clicked.connect(self.toggle_always_on_top)
-        self.pin_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4dabf7;
-                border: none;
-                color: white;
-                border-radius: 12px;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background-color: #339af0;
-            }
-        """)
-        
-        top_bar.addWidget(self.pin_btn)
-        top_bar.addStretch()
-        top_bar.addWidget(close_btn)
+        top_bar.addStretch()  # 添加弹性空间，将按钮推到右边
+        top_bar.addWidget(self.pin_btn)  # 钉住按钮
+        top_bar.addWidget(add_btn)      # 添加按钮
+        top_bar.addWidget(close_btn)    # 关闭按钮
         
         self.main_layout.addLayout(top_bar)
         
@@ -216,20 +254,22 @@ class StickyNote(QMainWindow):
             QScrollArea {
                 border: none;
                 background-color: transparent;
+                border-radius: 10px;
             }
             QScrollBar:vertical {
                 border: none;
-                background: #f1f3f5;
+                background: rgba(241, 243, 245, 0.6);
                 width: 10px;
                 margin: 0px;
+                border-radius: 5px;
             }
             QScrollBar::handle:vertical {
-                background: #adb5bd;
+                background: rgba(173, 181, 189, 0.8);
                 border-radius: 5px;
                 min-height: 20px;
             }
             QScrollBar::handle:vertical:hover {
-                background: #868e96;
+                background: rgba(134, 142, 150, 0.9);
             }
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
                 height: 0px;
@@ -241,40 +281,17 @@ class StickyNote(QMainWindow):
         
         # 创建单元格容器
         self.cells_widget = QWidget()
+        self.cells_widget.setStyleSheet("""
+            QWidget {
+                background: transparent;
+            }
+        """)
         self.cells_layout = QVBoxLayout(self.cells_widget)
         self.cells_layout.setSpacing(10)
         self.cells_layout.addStretch()  # 添加弹性空间
         
         self.scroll_area.setWidget(self.cells_widget)
         self.main_layout.addWidget(self.scroll_area)
-        
-        # 添加新单元格按钮
-        add_btn = QPushButton('+')
-        add_btn.setFixedSize(80, 30)
-        add_btn.clicked.connect(self.add_cell)
-        add_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #ffd43b;
-                border: none;
-                color: white;
-                border-radius: 15px;
-                font-size: 20px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #fcc419;
-            }
-        """)
-        
-        add_btn_layout = QHBoxLayout()
-        add_btn_layout.addStretch()
-        add_btn_layout.addWidget(add_btn)
-        add_btn_layout.addStretch()
-        
-        self.main_layout.addLayout(add_btn_layout)
-        
-        # 添加第一个单元格
-        self.add_cell()
         
         self.show()
     
@@ -298,36 +315,52 @@ class StickyNote(QMainWindow):
         pass
 
     def save_notes(self):
-        notes_data = []
+        import xml.etree.ElementTree as ET
+        from xml.dom import minidom
+        
+        root = ET.Element("stickynotes")
+        
         for i in range(self.cells_layout.count()):
             cell = self.cells_layout.itemAt(i).widget()
             if cell:
-                notes_data.append({
-                    'text': cell.text_edit.toPlainText(),
-                    'completed': cell.is_completed
-                })
+                # 获取单元格文本内容并去除首尾空白
+                text_content = cell.text_edit.toPlainText().strip()
+                # 只保存非空单元格
+                if text_content:
+                    note = ET.SubElement(root, "note")
+                    text = ET.SubElement(note, "text")
+                    # 保存原始文本（包括中间的换行和空格），只去除首尾空白
+                    text.text = text_content
+                    completed = ET.SubElement(note, "completed")
+                    completed.text = str(cell.is_completed)
+        
+        # 创建格式化的XML字符串
+        xml_str = minidom.parseString(ET.tostring(root)).toprettyxml(indent="    ")
         
         try:
             with open(self.notes_file, 'w', encoding='utf-8') as f:
-                for note in notes_data:
-                    f.write(f"{note['completed']}|||{note['text']}\n")
+                f.write(xml_str)
         except Exception as e:
             print(f"保存笔记时出错: {e}")
-    
+
     def load_notes(self):
+        import xml.etree.ElementTree as ET
+        
         try:
             if os.path.exists(self.notes_file):
-                with open(self.notes_file, 'r', encoding='utf-8') as f:
-                    lines = f.readlines()
-                    for line in lines:
-                        if '|||' in line:
-                            completed_str, text = line.strip().split('|||', 1)
-                            cell = CellWidget()
-                            cell.delete_btn.clicked.connect(self.create_delete_handler(cell))
-                            cell.text_edit.setText(text)
-                            if completed_str.lower() == 'true':
-                                cell.toggle_complete()
-                            self.cells_layout.insertWidget(self.cells_layout.count() - 1, cell)
+                tree = ET.parse(self.notes_file)
+                root = tree.getroot()
+                
+                for note in root.findall('note'):
+                    text = note.find('text').text or ""
+                    completed = note.find('completed').text.lower() == 'true'
+                    
+                    cell = CellWidget()
+                    cell.delete_btn.clicked.connect(self.create_delete_handler(cell))
+                    cell.text_edit.setText(text)
+                    if completed:
+                        cell.toggle_complete()
+                    self.cells_layout.insertWidget(self.cells_layout.count() - 1, cell)
         except Exception as e:
             print(f"加载笔记时出错: {e}")
 
