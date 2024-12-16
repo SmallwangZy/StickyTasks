@@ -4,9 +4,10 @@ import keyboard
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QTextEdit, 
                            QVBoxLayout, QWidget, QPushButton, QHBoxLayout,
                            QSystemTrayIcon, QMenu, QAction, QSizeGrip, QScrollArea,
-                           QLabel)
-from PyQt5.QtCore import Qt, QSize, QPoint
+                           QLabel, QMessageBox)
+from PyQt5.QtCore import Qt, QSize, QPoint, QDate
 from PyQt5.QtGui import QIcon, QFont, QColor
+import yaml
 
 class CellWidget(QWidget):
     def __init__(self, parent=None):
@@ -188,6 +189,8 @@ class StickyNote(QMainWindow):
         top_bar = QHBoxLayout()
         top_bar.setSpacing(10)
         
+       
+        
         # 添加日期标签
         from datetime import datetime
         date_label = QLabel(datetime.now().strftime("%Y-%m-%d"))
@@ -202,6 +205,23 @@ class StickyNote(QMainWindow):
                 border-radius: 8px;
             }
         """)
+        
+         # 导出Markdown按钮
+        export_btn = QPushButton('📝')
+        export_btn.setFixedSize(25, 25)
+        export_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #4dabf7;
+                border: none;
+                color: white;
+                border-radius: 12px;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #339af0;
+            }
+        """)
+        export_btn.clicked.connect(self.export_markdown)  # 连接导出功能
         
         # 置顶按钮
         self.pin_btn = QPushButton('📌')
@@ -256,10 +276,12 @@ class StickyNote(QMainWindow):
             }
         """)
         
-        top_bar.addStretch()  # 添加弹性空间，将按钮推到右边
+        
         top_bar.addWidget(date_label)  # 添加日期标签
         top_bar.addWidget(self.pin_btn)  # 钉住按钮
         top_bar.addWidget(add_btn)      # 添加按钮
+        top_bar.addWidget(export_btn)  # 将导出按钮添加到布局
+        top_bar.addStretch()
         top_bar.addWidget(close_btn)    # 关闭按钮
         
         self.main_layout.addLayout(top_bar)
@@ -380,6 +402,36 @@ class StickyNote(QMainWindow):
                     self.cells_layout.insertWidget(self.cells_layout.count() - 1, cell)
         except Exception as e:
             print(f"加载笔记时出错: {e}")
+
+    def load_config(self):
+        config_path = os.path.expanduser('./config.yaml')
+        if os.path.exists(config_path):
+            with open(config_path, 'r') as file:
+                config = yaml.safe_load(file)
+                export_path = config.get('export_path', '~/')
+                # 检查路径是否有效
+                if not os.path.isdir(os.path.normpath(export_path)):
+                    return '~/'
+                return os.path.normpath(export_path)
+        return '~/'
+
+    def export_markdown(self):
+        # 合并所有单元格内容并导出为Markdown文件
+        content = "# 这里将收集所有单元格内容\n\n"
+        for i in range(self.cells_layout.count()):
+            cell = self.cells_layout.itemAt(i).widget()
+            if cell:
+                text_content = cell.text_edit.toPlainText().strip()
+                if text_content:
+                    content += f"### 单元格 {i+1}\n\n{text_content}\n\n"
+        export_path = self.load_config()  # 从配置文件加载导出路径
+        print(export_path)
+        export_path = os.path.expanduser(export_path)  # 处理~符号
+        date_str = QDate.currentDate().toString("yyyy-MM-dd")
+        file_path = os.path.join(export_path, f'{date_str}.md')
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(content)
+        QMessageBox.information(self, '导出成功', f'已导出为 {file_path}')
 
     def toggle_always_on_top(self):
         self.always_on_top = not self.always_on_top
