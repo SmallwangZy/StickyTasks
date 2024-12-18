@@ -111,7 +111,7 @@ class CellWidget(QWidget):
         if self.is_completed:
             self.text_edit.setStyleSheet(f"""
                 QTextEdit {{
-                    background-color: #777777;
+                    background-color: #aaaaaa;
                     border: 1px solid #ddd;
                     border-radius: 8px;
                     padding: 5px;
