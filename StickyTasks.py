@@ -111,7 +111,7 @@ class CellWidget(QWidget):
         if self.is_completed:
             self.text_edit.setStyleSheet(f"""
                 QTextEdit {{
-                    background-color: #f1f3f5;
+                    background-color: #777777;
                     border: 1px solid #ddd;
                     border-radius: 8px;
                     padding: 5px;
@@ -257,6 +257,7 @@ class StickyNote(QMainWindow):
                 background-color: #fcc419;
             }
         """)
+        
         
         # 关闭按钮
         close_btn = QPushButton('×')
@@ -417,17 +418,17 @@ class StickyNote(QMainWindow):
 
     def export_markdown(self):
         # 合并所有单元格内容并导出为Markdown文件
-        content = "# 这里将收集所有单元格内容\n\n"
+        date_str = QDate.currentDate().toString("yyyy-MM-dd")
+        content = "# {}任务\n\n".format(date_str)
         for i in range(self.cells_layout.count()):
             cell = self.cells_layout.itemAt(i).widget()
             if cell:
                 text_content = cell.text_edit.toPlainText().strip()
                 if text_content:
-                    content += f"### 单元格 {i+1}\n\n{text_content}\n\n"
+                    content += f"## 任务 {i+1}\n\n{text_content}\n\n"
         export_path = self.load_config()  # 从配置文件加载导出路径
         print(export_path)
         export_path = os.path.expanduser(export_path)  # 处理~符号
-        date_str = QDate.currentDate().toString("yyyy-MM-dd")
         file_path = os.path.join(export_path, f'{date_str}.md')
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(content)
@@ -627,8 +628,8 @@ def main():
         note.toggle_always_on_top()
     
     # 创建应用实例后再注册快捷键
-    keyboard.add_hotkey('shift+alt+q', toggle_visibility, suppress=True)
-    keyboard.add_hotkey('shift+alt+w', toggle_pin_state, suppress=True)
+    keyboard.add_hotkey('ctrl+alt+q', toggle_visibility, suppress=True)
+    keyboard.add_hotkey('ctrl+alt+w', toggle_pin_state, suppress=True)
     
     note.show()  
     sys.exit(app.exec_())
